@@ -6,7 +6,7 @@
  * @flow strict-local
  */
 
-import {React, useState} from 'react';
+import {React, useState, useEffect} from 'react';
 import type {Node} from 'react';
 import {
   Button,
@@ -20,7 +20,8 @@ import {
   View,
   Image,
   TouchableHighlight,
-  TouchableOpacity
+  TouchableOpacity,
+  FlatList,
 } from 'react-native';
 
 import {
@@ -31,19 +32,18 @@ import {
   ReloadInstructions,
 } from 'react-native/Libraries/NewAppScreen';
 
-const App: () => Node = () => {
+import Pokemon from './components/Pokemon';
 
+const App: () => Node = () => {
   const [value, setValue] = useState('');
   const [pokemon, setPokemon] = useState({});
+  const [pageUrl, setPageUrl] = useState('https://pokeapi.co/api/v2/pokemon');
+  const [pokemonList, setPokemonList] = useState([]);
   const isDarkMode = useColorScheme() === 'dark';
 
-  const backgroundStyle = {
-    backgroundColor: isDarkMode ? Colors.darker : Colors.lighter,
-  };
-
-  const test = () => {
-    console.log('teste');
-  };
+  useEffect(() => {
+    getAllPokemon();
+  }, []);
 
   const searchByNumber = async => {
     const url = `https://pokeapi.co/api/v2/pokemon/${value}`;
@@ -55,6 +55,22 @@ const App: () => Node = () => {
     })
       .then(response => response.json())
       .then(json => setPokemon(json))
+      .catch(error => console.log(error.message))
+      .finally(console.log('finalizado'));
+  };
+
+  const getAllPokemon = async => {
+    fetch(pageUrl, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json; charset=utf-8',
+      },
+    })
+      .then(response => response.json())
+      .then(json => {
+        setPokemonList(list => [...list, ...json.results]);
+        setPageUrl(json.next);
+      })
       .catch(error => console.log(error.message))
       .finally(console.log('finalizado'));
   };
@@ -97,10 +113,34 @@ const App: () => Node = () => {
         <View style={{backgroundColor: 'blue', flex: 2}}></View>
       </View>
        */}
-       <Text>{pokemon.name}</Text>
-       <TextInput style={styles.sectionDescription} onChangeText={(text) => setValue(text)} value={value} />
-       <Image style={styles.imageContainer} source={{uri: pokemon.sprites.front_default}}/>
-       <Button title='Buscar' onPress={() => searchByNumber()} />
+      <Text>{pokemon.name}</Text>
+      <TextInput
+        style={styles.sectionDescription}
+        onChangeText={text => setValue(text)}
+        value={value}
+      />
+      {pokemon.sprites ? (
+        <Image
+          style={styles.imageContainer}
+          source={{uri: pokemon.sprites.front_default}}
+        />
+      ) : (
+        <></>
+      )}
+      <Button title="Buscar" onPress={() => searchByNumber()} />
+
+      <FlatList
+        data={pokemonList}
+        keyExtractor={item => item.name}
+        renderItem={({item}) => (
+          <>
+            {/* <Text style={styles.sectionDescription}>{item.name}</Text> */}
+            <Pokemon url={item.url} />
+          </>
+        )}
+        onEndReached={() => getAllPokemon()}
+        onEndReachedThreshold={0.15}
+      />
     </View>
   );
 };
@@ -128,10 +168,11 @@ const styles = StyleSheet.create({
   },
   sectionDescription: {
     marginTop: 8,
-    fontSize: 18,
+    fontSize: 24,
+    padding: 8,
     fontWeight: '400',
     borderColor: 'black',
-    borderWidth: 1
+    borderWidth: 1,
   },
   highlight: {
     fontWeight: '700',
